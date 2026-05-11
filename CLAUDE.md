@@ -1,49 +1,89 @@
-# linux-setup — Instructions pour Claude Code
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+---
 
 ## Objectif
 
-Créer un système de scripts bash de configuration automatisée pour Linux dans ce dépôt.
+Créer un système de scripts bash de configuration automatisée pour Linux.
 Les scripts doivent permettre de configurer n'importe quelle nouvelle machine Linux en une seule commande.
 
 ---
 
-## État initial du dépôt
+## État actuel du dépôt
 
-Les fichiers de configuration suivants sont **déjà présents** — ne pas les modifier, les utiliser tels quels :
+### Fichiers déjà présents (ne pas modifier)
 
 ```
-fastfetch/config.jsonc
+fastfetch/config.jsonc          ← chemin logo hardcodé /home/mathis/... à garder tel quel
 fastfetch/Chibi-Anime-PNG-Transparent-Image.png
 ghostty/config.ghostty
 zed/settings.json
-zed/themes/
-zsh/          ← dossier vide à compléter
+zsh/.zshrc                      ← utilise oh-my-posh + zinit (voir note ci-dessous)
+```
+
+### Note importante sur zsh/.zshrc
+
+Le `.zshrc` existant **diverge de la spec** : il utilise **oh-my-posh** (pas starship) et **zinit** (pas de clonage manuel des plugins). Il inclut aussi `PATH lmstudio` et `DOCKER_BUILDKIT=1`. **Ne pas écraser ce fichier** — créer `zsh/.aliases` en complément uniquement.
+
+### Fichiers à créer
+
+```
+setup.sh
+scripts/utils.sh
+scripts/detect_distro.sh
+scripts/install_packages.sh
+scripts/setup_dotfiles.sh
+scripts/setup_git_ssh.sh
+scripts/setup_security.sh
+scripts/setup_dev_tools.sh
+zsh/.aliases
+.gitignore
+README.md
 ```
 
 ---
 
-## Structure complète à créer
+## Architecture et dépendances entre scripts
 
 ```
-.
-├── CLAUDE.md
-├── setup.sh
-├── scripts/
-│   ├── utils.sh
-│   ├── detect_distro.sh
-│   ├── install_packages.sh
-│   ├── setup_dotfiles.sh
-│   ├── setup_git_ssh.sh
-│   ├── setup_security.sh
-│   └── setup_dev_tools.sh
-├── zsh/
-│   ├── .zshrc
-│   └── .aliases
-├── fastfetch/          ← existant
-├── ghostty/            ← existant
-├── zed/                ← existant
-├── .gitignore
-└── README.md
+setup.sh
+ ├── source scripts/utils.sh          (fonctions log_*, cmd_exists, confirm)
+ ├── source scripts/detect_distro.sh  (exporte DISTRO_FAMILY, PKG_INSTALL, etc.)
+ └── bash scripts/<module>.sh         (chaque module source utils + detect si besoin)
+
+scripts/utils.sh          ← aucune dépendance, chargé en premier
+scripts/detect_distro.sh  ← dépend de utils.sh (pour log_error)
+scripts/install_packages.sh  ← dépend de detect_distro.sh
+scripts/setup_dotfiles.sh    ← indépendant (git clone, ln -sf)
+scripts/setup_git_ssh.sh     ← indépendant
+scripts/setup_security.sh    ← dépend de detect_distro.sh (pour installer ufw)
+scripts/setup_dev_tools.sh   ← dépend de detect_distro.sh (pour docker)
+```
+
+Chaque sous-script doit recharger `detect_distro.sh` si `DISTRO_FAMILY` n'est pas défini :
+```bash
+[[ -z "${DISTRO_FAMILY:-}" ]] && source "$(dirname "$0")/detect_distro.sh"
+```
+
+---
+
+## Tester les scripts
+
+```bash
+# Vérification syntaxique sans exécution
+bash -n scripts/utils.sh
+bash -n scripts/detect_distro.sh
+
+# Lint statique (si shellcheck installé)
+shellcheck scripts/*.sh setup.sh
+
+# Tester la détection de distro seule
+bash scripts/detect_distro.sh && echo "DISTRO_FAMILY=$DISTRO_FAMILY"
+
+# Tester le menu setup sans rien installer (lecture seule)
+bash -x setup.sh 2>&1 | head -50
 ```
 
 ---
@@ -53,16 +93,12 @@ zsh/          ← dossier vide à compléter
 - Shebang : `#!/usr/bin/env bash`
 - `set -euo pipefail` dans chaque script
 - Toujours vérifier si un outil est déjà installé avant de l'installer (`cmd_exists`)
-- Les sous-scripts peuvent être lancés **seuls** ou **depuis setup.sh** :
-  recharger `detect_distro.sh` si `DISTRO_FAMILY` n'est pas défini (`[[ -z "${DISTRO_FAMILY:-}" ]]`)
 - Jamais d'`echo` brut : tous les messages passent par les fonctions de `utils.sh`
 - Permissions finales : `setup.sh` et `scripts/*.sh` → `755`, dotfiles → `644`
 
 ---
 
 ## scripts/utils.sh
-
-Fonctions à définir :
 
 | Fonction | Comportement |
 |---|---|
@@ -128,7 +164,7 @@ Cas particulier Debian/Ubuntu : `bat` s'appelle `batcat` → créer un lien symb
 2. Si `<dest>` existe et n'est **pas** déjà un symlink → backup dans `~/.dotfiles_backup/<timestamp>/`
 3. Créer le symlink : `ln -sf "<src_absolu>" "<dest>"`
 
-**Symlinks à créer** (chemins relatifs au repo) :
+**Symlinks à créer** :
 
 | Source (dans le repo) | Destination |
 |---|---|
@@ -138,11 +174,9 @@ Cas particulier Debian/Ubuntu : `bat` s'appelle `batcat` → créer un lien symb
 | `zsh/.zshrc` | `~/.zshrc` |
 | `zsh/.aliases` | `~/.aliases` |
 
-**Plugins zsh** (sans Oh My Zsh, cloner dans `~/.zsh/`) :
+**Plugins zsh** — cloner dans `~/.zsh/` avec `--depth=1`, vérifier si le dossier existe déjà :
 - `https://github.com/zsh-users/zsh-autosuggestions`
 - `https://github.com/zsh-users/zsh-syntax-highlighting`
-
-Cloner avec `--depth=1`, vérifier si le dossier existe déjà avant de cloner.
 
 **Starship** : installer si absent avec `curl -sS https://starship.rs/install.sh | sh -s -- --yes`
 
@@ -161,7 +195,6 @@ Cloner avec `--depth=1`, vérifier si le dossier existe déjà avant de cloner.
 - Si la clé existe déjà → `log_warn` + `confirm` avant d'écraser
 - Permissions : `700` sur `~/.ssh/`, `600` clé privée, `644` clé publique
 - Ajouter au ssh-agent : `eval "$(ssh-agent -s)"` puis `ssh-add`
-- Afficher la clé publique
 - Copier dans le presse-papiers : priorité `wl-copy` (Wayland), sinon `xclip`
 - Afficher le lien : `https://github.com/settings/ssh/new`
 
@@ -202,11 +235,9 @@ sudo systemctl disable --now whoopsie.service 2>/dev/null || true
 
 **nvm + Node LTS**
 ```bash
-# Récupérer la dernière version via l'API GitHub
 nvm_version=$(curl -s https://api.github.com/repos/nvm-sh/nvm/releases/latest \
   | grep '"tag_name"' | cut -d'"' -f4)
 curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_version}/install.sh" | bash
-# Charger nvm puis installer Node LTS
 export NVM_DIR="$HOME/.nvm"
 source "$NVM_DIR/nvm.sh"
 nvm install --lts && nvm use --lts
@@ -228,42 +259,6 @@ Puis : `sudo systemctl enable --now docker` + `sudo usermod -aG docker "$USER"`
 **Zed** : `curl -fsSL https://zed.dev/install.sh | sh`
 
 Vérifier avec `cmd_exists` avant chaque installation.
-
----
-
-## zsh/.zshrc
-
-```zsh
-# History
-HISTSIZE=10000
-SAVEHIST=10000
-HISTFILE="$HOME/.zsh_history"
-setopt HIST_IGNORE_DUPS HIST_IGNORE_SPACE SHARE_HISTORY
-
-# Completion
-autoload -Uz compinit && compinit
-
-# Plugins
-ZSH_PLUGIN_DIR="$HOME/.zsh"
-[[ -f "$ZSH_PLUGIN_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] \
-  && source "$ZSH_PLUGIN_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh"
-[[ -f "$ZSH_PLUGIN_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] \
-  && source "$ZSH_PLUGIN_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
-
-# nvm
-export NVM_DIR="$HOME/.nvm"
-[[ -s "$NVM_DIR/nvm.sh" ]] && source "$NVM_DIR/nvm.sh"
-[[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
-
-# Aliases
-[[ -f "$HOME/.aliases" ]] && source "$HOME/.aliases"
-
-# fzf
-command -v fzf &>/dev/null && source <(fzf --zsh)
-
-# Starship
-command -v starship &>/dev/null && eval "$(starship init zsh)"
-```
 
 ---
 
@@ -337,11 +332,11 @@ mkcd() { mkdir -p "$1" && cd "$1"; }
    [6] Outils dev
    [q] Quitter
    ```
-4. Option 1 : enchaîner les scripts dans l'ordre `install → dotfiles → git_ssh → security → dev_tools`
-5. Options 2-6 : lancer uniquement le script correspondant via `bash "$SCRIPT_DIR/scripts/<script>.sh"`
+4. Option 1 : enchaîner dans l'ordre `install → dotfiles → git_ssh → security → dev_tools`
+5. Options 2-6 : lancer via `bash "$SCRIPT_DIR/scripts/<script>.sh"`
 6. Message de fin avec rappel des **actions manuelles** :
-   - Re-login nécessaire pour Docker (`newgrp docker`)
-   - Ajouter la clé SSH sur GitHub si pas encore fait
+   - Re-login pour Docker (`newgrp docker`)
+   - Ajouter la clé SSH sur GitHub
    - Redémarrer le terminal pour zsh
 
 ---
