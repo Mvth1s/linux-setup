@@ -42,57 +42,56 @@ bindkey '^[[B' history-search-forward
 ############################
 # ALIAS
 ############################
-
-alias ls="ls --color=auto"
-alias ll="ls -lah"
-alias la="ls -A"
-alias ..="cd .."
-alias ...="cd ../.."
+alias ls="ls --color=auto"   # liste les fichiers avec couleurs
+alias ll="ls -lah"           # liste détaillée (permissions, taille, cachés)
+alias la="ls -A"             # liste tous les fichiers dont les cachés
+alias ..="cd .."             # remonte d'un répertoire
+alias ...="cd ../.."         # remonte de deux répertoires
 
 ## Git
-alias gs="git status"
-alias ga="git add"
-alias gc="git commit"
-alias gcm="git commit -m"
-alias gcam="git commit -am"
-alias gp="git push"
-alias gpl="git pull"
-alias gfp="git fetch --prune"
-alias gl="git log --oneline --graph --decorate"
-alias gr="git restore"
-alias gco="git checkout"
-alias gcob="git checkout -b"
-alias gcod="git checkout dev"
-alias gcom="git checkout main"
-alias gb="git branch"
-alias gbr="git branch -r"
-alias gba="git branch -a"
-alias gbd="git branch -d"
-alias gbD="git branch -D"
-alias gbm="git branch -m"
-alias gbmm="git branch -m main"
-alias gst="git stash"
-alias gstp="git stash pop"
-alias gstl="git stash list"
-alias gd="git diff"
-alias gds="git diff --staged"
-alias grs="git restore --staged"
-alias grb="git rebase"
-alias gm="git merge"
-alias gsw="git switch"
-alias gswc="git switch -c"
+alias gs="git status"                      # état du dépôt (modifs, staged, untracked)
+alias ga="git add"                         # ajoute un fichier au staging
+alias gc="git commit"                      # ouvre l'éditeur pour commiter
+alias gcm="git commit -m"                  # commit avec message inline
+alias gcam="git commit -am"                # stage + commit tous les fichiers suivis
+alias gp="git push"                        # pousse les commits vers le remote
+alias gpl="git pull"                       # récupère et fusionne les commits du remote
+alias gfp="git fetch --prune"              # récupère les refs et supprime les branches distantes supprimées
+alias gl="git log --oneline --graph --decorate"  # log compact avec arbre des branches
+alias gr="git restore"                     # annule les modifs d'un fichier (working tree)
+alias gco="git checkout"                   # change de branche ou restaure des fichiers
+alias gcob="git checkout -b"               # crée et bascule sur une nouvelle branche
+alias gcod="git checkout dev"              # bascule sur la branche dev
+alias gcom="git checkout main"             # bascule sur la branche main
+alias gb="git branch"                      # liste les branches locales
+alias gbr="git branch -r"                  # liste les branches distantes
+alias gba="git branch -a"                  # liste toutes les branches (locales + distantes)
+alias gbd="git branch -d"                  # supprime une branche (safe, refus si non fusionnée)
+alias gbD="git branch -D"                  # supprime une branche de force
+alias gbm="git branch -m"                  # renomme une branche  →  gbm <ancien> <nouveau>
+alias gbmm="git branch -m main"            # renomme la branche courante en main
+alias gst="git stash"                      # met de côté les modifs non commitées
+alias gstp="git stash pop"                 # réapplique le dernier stash et le supprime
+alias gstl="git stash list"                # liste tous les stashs
+alias gd="git diff"                        # diff des modifs non stagées
+alias gds="git diff --staged"              # diff des modifs stagées (avant commit)
+alias grs="git restore --staged"           # retire un fichier du staging (unstage)
+alias grb="git rebase"                     # rejoue les commits sur une autre base
+alias gm="git merge"                       # fusionne une branche dans la branche courante
+alias gsw="git switch"                     # bascule sur une branche (alternative moderne à gco)
+alias gswc="git switch -c"                 # crée et bascule sur une nouvelle branche (alternative moderne à gcob)
 
 ## Python
-alias py="python3"
-alias pcs="pycodestyle"
+alias py="python3"           # lance Python 3
+alias pcs="pycodestyle"      # vérifie le style PEP8 d'un fichier Python
 
 ## Docker
-alias d="docker"
-alias dc="docker compose"
-alias dcu="docker compose up -d"
-alias dcd="docker compose down"
-alias dps="docker ps"
-alias dlogs="docker logs -f"
+alias d="docker"                    # raccourci docker
+alias dc="docker compose"           # raccourci docker compose
+alias dcu="docker compose up -d"    # démarre les services en arrière-plan
+alias dcd="docker compose down"     # arrête et supprime les conteneurs
+alias dps="docker ps"               # liste les conteneurs actifs
+alias dlogs="docker logs -f"        # suit les logs d'un conteneur en temps réel
 
 ############################
 # OH MY POSH
