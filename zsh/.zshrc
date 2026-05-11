@@ -107,7 +107,7 @@ compinit -d ~/.zcompdump
 zinit cdreplay -q
 
 # Added by LM Studio CLI tool (lms)
-export PATH="$PATH:/home/mathis/.lmstudio/bin"
+export PATH="$PATH:$HOME/.lmstudio/bin"
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
