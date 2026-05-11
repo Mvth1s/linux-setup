@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/scripts/utils.sh"
-source "$SCRIPT_DIR/scripts/detect_distro.sh"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$REPO_ROOT/scripts/utils.sh"
+source "$REPO_ROOT/scripts/detect_distro.sh"
 
 show_banner() {
     printf "${BOLD}${CYAN}"
@@ -28,7 +28,7 @@ show_menu() {
 }
 
 run_script() {
-    bash "$SCRIPT_DIR/scripts/$1"
+    bash "$REPO_ROOT/scripts/$1"
 }
 
 show_final_message() {
