@@ -41,8 +41,12 @@ else
     log_info "oh-my-posh déjà présent"
 fi
 
+LOCAL_BIN_LINE='export PATH="$HOME/.local/bin:$PATH"'
+if ! grep -qxF "$LOCAL_BIN_LINE" "$HOME/.zshenv" 2>/dev/null; then
+    echo "$LOCAL_BIN_LINE" >> "$HOME/.zshenv"
+    log_success "~/.local/bin ajouté au PATH de façon permanente (~/.zshenv)"
+fi
 export PATH="$HOME/.local/bin:$PATH"
-log_success "~/.local/bin ajouté au PATH (session courante)"
 
 log_step "Installation des Nerd Fonts (JetBrainsMono)"
 if ! fc-list | grep -qi "JetBrainsMono Nerd"; then

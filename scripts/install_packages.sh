@@ -7,8 +7,8 @@ source "$SCRIPT_DIR/utils.sh"
 
 log_step "Mise à jour du système"
 if [[ "$PKG_MANAGER" == "apt" ]]; then
-    sudo apt update 2>&1 | grep -v "^W:" | grep -v "^N:" || true
-    sudo apt upgrade -y
+    sudo apt-get update 2>&1 | grep -v "^W:" | grep -v "^N:" || true
+    sudo apt-get upgrade -y
 else
     eval "$PKG_UPDATE"
 fi
@@ -96,7 +96,7 @@ install_ghostty() {
             eval "$PKG_INSTALL ghostty"
             ;;
         debian)
-            if sudo apt install -y ghostty 2>/dev/null; then
+            if sudo apt-get install -y ghostty 2>/dev/null; then
                 log_success "ghostty installé via apt"
             elif cmd_exists snap; then
                 log_info "ghostty non disponible via apt — tentative via snap..."

@@ -13,9 +13,15 @@ printf "Nom Git [%s] : " "${current_name:-}"
 read -r git_name
 git_name="${git_name:-$current_name}"
 
-printf "Email Git [%s] : " "${current_email:-}"
-read -r git_email
-git_email="${git_email:-$current_email}"
+while true; do
+    printf "Email Git [%s] : " "${current_email:-}"
+    read -r git_email
+    git_email="${git_email:-$current_email}"
+    if [[ "$git_email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+        break
+    fi
+    log_warn "Email invalide : '$git_email' — réessaie"
+done
 
 git config --global user.name        "$git_name"
 git config --global user.email       "$git_email"

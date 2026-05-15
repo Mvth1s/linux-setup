@@ -18,6 +18,8 @@ else
     log_info "nvm déjà présent"
 fi
 
+# Désactiver nounset le temps de sourcer et d'utiliser nvm (incompatible avec set -u)
+set +u
 export NVM_DIR="$HOME/.nvm"
 # shellcheck source=/dev/null
 [[ -s "$NVM_DIR/nvm.sh" ]] && source "$NVM_DIR/nvm.sh"
@@ -30,6 +32,7 @@ if ! nvm ls lts/* 2>/dev/null | grep -q "lts/"; then
 else
     log_info "Node.js LTS déjà installé : $(node --version)"
 fi
+set -u
 
 log_step "Installation de pnpm"
 if ! cmd_exists pnpm; then
