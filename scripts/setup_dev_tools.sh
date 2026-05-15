@@ -5,6 +5,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/utils.sh"
 [[ -z "${DISTRO_FAMILY:-}" ]] && source "$SCRIPT_DIR/detect_distro.sh"
 
+check_disk_space() {
+    local required_gb="$1"
+    local label="$2"
+    local available_kb
+    available_kb=$(df / --output=avail 2>/dev/null | tail -1)
+    local available_gb=$(( available_kb / 1024 / 1024 ))
+    if (( available_gb < required_gb )); then
+        log_warn "Espace disque insuffisant pour $label"
+        log_warn "  Disponible : ${available_gb} Go — Recommandé : ${required_gb} Go"
+        log_warn "  Lance 'sudo apt-get autoremove && docker system prune -f' pour libérer de l'espace"
+        return 1
+    fi
+}
+
 log_step "Installation de nvm + Node.js LTS"
 
 if [[ ! -d "$HOME/.nvm" ]]; then
@@ -44,50 +58,60 @@ else
 fi
 
 log_step "Installation de Docker"
-
-if ! cmd_exists docker; then
-    log_info "Installation de Docker..."
-    case "$DISTRO_FAMILY" in
-        arch)
-            IFS=' ' read -ra _install_cmd <<< "$PKG_INSTALL"
-            "${_install_cmd[@]}" docker docker-compose
-            ;;
-        debian)
-            curl -fsSL https://get.docker.com | sudo sh
-            sudo apt install -y docker-compose-plugin
-            ;;
-        rhel)
-            sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-            ;;
-        suse)
-            sudo zypper install -y docker docker-compose
-            ;;
-    esac
-    log_success "Docker installé"
+if check_disk_space 5 "Docker"; then
+    if ! cmd_exists docker; then
+        log_info "Installation de Docker..."
+        case "$DISTRO_FAMILY" in
+            arch)
+                IFS=' ' read -ra _install_cmd <<< "$PKG_INSTALL"
+                "${_install_cmd[@]}" docker docker-compose
+                ;;
+            debian)
+                curl -fsSL https://get.docker.com | sudo sh
+                sudo apt install -y docker-compose-plugin
+                ;;
+            rhel)
+                sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+                ;;
+            suse)
+                sudo zypper install -y docker docker-compose
+                ;;
+        esac
+        log_success "Docker installé"
+    else
+        log_info "Docker déjà présent"
+    fi
+    sudo systemctl enable --now docker
+    sudo usermod -aG docker "$USER"
+    log_success "Docker activé — re-login requis pour l'utiliser sans sudo"
 else
-    log_info "Docker déjà présent"
+    log_warn "Docker ignoré — espace insuffisant"
 fi
 
-sudo systemctl enable --now docker
-sudo usermod -aG docker "$USER"
-log_success "Docker activé — re-login requis pour l'utiliser sans sudo"
-
 log_step "Installation d'Ollama"
-if ! cmd_exists ollama; then
-    log_info "Installation d'Ollama..."
-    curl -fsSL https://ollama.com/install.sh | sh
-    log_success "Ollama installé"
+if check_disk_space 8 "Ollama"; then
+    if ! cmd_exists ollama; then
+        log_info "Installation d'Ollama..."
+        curl -fsSL https://ollama.com/install.sh | sh
+        log_success "Ollama installé"
+    else
+        log_info "Ollama déjà présent"
+    fi
 else
-    log_info "Ollama déjà présent"
+    log_warn "Ollama ignoré — espace insuffisant"
 fi
 
 log_step "Installation de Zed"
-if ! cmd_exists zed; then
-    log_info "Installation de Zed..."
-    curl -fsSL https://zed.dev/install.sh | sh
-    log_success "Zed installé"
+if check_disk_space 1 "Zed"; then
+    if ! cmd_exists zed; then
+        log_info "Installation de Zed..."
+        curl -fsSL https://zed.dev/install.sh | sh
+        log_success "Zed installé"
+    else
+        log_info "Zed déjà présent"
+    fi
 else
-    log_info "Zed déjà présent"
+    log_warn "Zed ignoré — espace insuffisant"
 fi
 
 log_success "Outils de développement installés"
