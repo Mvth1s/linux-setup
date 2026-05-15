@@ -96,9 +96,16 @@ install_ghostty() {
             eval "$PKG_INSTALL ghostty"
             ;;
         debian)
-            eval "$PKG_INSTALL" ghostty 2>/dev/null \
-                && log_success "ghostty installé via apt" \
-                || log_warn "ghostty non disponible sur apt — voir https://ghostty.org/docs/install/binary"
+            if sudo apt install -y ghostty 2>/dev/null; then
+                log_success "ghostty installé via apt"
+            elif cmd_exists snap; then
+                log_info "ghostty non disponible via apt — tentative via snap..."
+                sudo snap install ghostty --classic \
+                    && log_success "ghostty installé via snap" \
+                    || log_warn "ghostty : échec snap — voir https://ghostty.org/docs/install/binary"
+            else
+                log_warn "ghostty non disponible — voir https://ghostty.org/docs/install/binary"
+            fi
             ;;
         rhel)
             eval "$PKG_INSTALL ghostty" 2>/dev/null \

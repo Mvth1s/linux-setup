@@ -66,13 +66,21 @@ else
 fi
 
 log_step "Shell par défaut"
-if [[ "$SHELL" != "$(which zsh 2>/dev/null || true)" ]]; then
-    if confirm "Définir zsh comme shell par défaut ?"; then
-        chsh -s "$(which zsh)"
-        log_success "Shell par défaut changé en zsh (actif à la prochaine connexion)"
-    fi
-else
+_zsh_path="$(which zsh 2>/dev/null || true)"
+
+if [[ -z "$_zsh_path" ]]; then
+    log_warn "zsh introuvable — shell par défaut non modifié"
+elif [[ "$SHELL" == "$_zsh_path" ]]; then
     log_info "zsh est déjà le shell par défaut"
+elif confirm "Définir zsh comme shell par défaut ?"; then
+    if chsh -s "$_zsh_path" 2>/dev/null; then
+        log_success "Shell par défaut changé en zsh (actif à la prochaine connexion)"
+    elif sudo chsh -s "$_zsh_path" "$USER" 2>/dev/null; then
+        log_success "Shell par défaut changé en zsh via sudo (actif à la prochaine connexion)"
+    else
+        log_warn "Impossible de changer le shell automatiquement."
+        log_warn "Lance manuellement : sudo chsh -s $_zsh_path \$USER"
+    fi
 fi
 
 log_success "Dotfiles configurés"
