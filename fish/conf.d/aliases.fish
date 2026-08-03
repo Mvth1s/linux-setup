@@ -1,0 +1,55 @@
+# ~/.config/fish/conf.d/aliases.fish
+# Alias et fonctions partagés — porté depuis zsh/.aliases
+
+# Navigation
+alias ..="cd .."
+alias ...="cd ../.."
+
+# ls → eza (fallback ls)
+if command -q eza
+    alias ls="eza --icons"
+    alias ll="eza -l --icons --git"
+    alias la="eza -la --icons --git"
+    alias lt="eza --tree --icons --level=2"
+else
+    alias ls="ls --color=auto"
+    alias ll="ls -lhF"
+    alias la="ls -lhAF"
+end
+
+# cat → bat (fallback)
+command -q bat; and alias cat="bat --paging=never"
+
+# Git
+alias g="git"
+alias gs="git status"
+alias ga="git add"
+alias gc="git commit"
+alias gp="git push"
+alias gl="git pull"
+alias gd="git diff"
+alias glog="git log --oneline --graph --decorate"
+alias gco="git checkout"
+alias gb="git branch"
+
+# Docker
+alias d="docker"
+alias dc="docker compose"
+alias dps="docker ps"
+alias dpsa="docker ps -a"
+alias dclean="docker system prune -f"
+
+# Système
+alias myip="curl -s https://api.ipify.org && echo"
+alias ports="ss -tulnp"
+alias df="df -h"
+alias du="du -sh"
+alias free="free -h"
+
+# Misc
+alias reload="source ~/.config/fish/config.fish"
+alias please="sudo"
+
+function mkcd --description "Crée un répertoire et s'y déplace"
+    mkdir -p "$argv[1]"; and cd "$argv[1]"
+end

@@ -1,0 +1,9 @@
+# /etc/dnf/libdnf5-plugins/actions.d/snapper.actions
+#
+# Émule le plugin snapper de dnf4 (indisponible sous dnf5) via le plugin
+# libdnf5-plugin-actions : crée un snapshot Btrfs "pre" avant chaque
+# transaction dnf5 et un snapshot "post" juste après.
+#
+# Format : callback_name:package_filter:direction:options:command
+pre_transaction::::/usr/local/bin/snapper-dnf5-pre
+post_transaction::::/usr/local/bin/snapper-dnf5-post '${tmp.snapper_pre_number}'

@@ -20,9 +20,11 @@ show_menu() {
     printf "  [1] Tout installer\n"
     printf "  [2] Paquets système + Flatpak\n"
     printf "  [3] Dotfiles\n"
-    printf "  [4] Git & SSH\n"
+    printf "  [4] Git & SSH (identités perso/ETNA)\n"
     printf "  [5] Sécurité\n"
     printf "  [6] Outils dev\n"
+    printf "  [7] Shell fish + Tide\n"
+    printf "  [8] Extras Fedora (RPM Fusion, Docker, snapper…)\n"
     printf "  [q] Quitter\n\n"
     printf "Votre choix : "
 }
@@ -35,8 +37,11 @@ show_final_message() {
     log_step "Installation terminée"
     log_warn "Actions manuelles requises :"
     printf "  • Re-login pour activer Docker : newgrp docker\n"
-    printf "  • Ajouter la clé SSH sur GitHub : https://github.com/settings/ssh/new\n"
-    printf "  • Redémarrer le terminal pour activer zsh\n"
+    printf "  • Ajouter la clé GitHub sur : https://github.com/settings/ssh/new\n"
+    printf "  • Ajouter la clé GitLab ETNA sur rendu-git.etna-alternance.net\n"
+    printf "  • Redémarrer le terminal pour activer fish (shell par défaut)\n"
+    printf "  • Vérifier que les dépôts clonés sous ~/Documents/Dev/ ou ~/Documents/ETNA/\n"
+    printf "    utilisent la bonne identité git (voir includeIf dans ~/.gitconfig)\n"
 }
 
 show_banner
@@ -48,9 +53,13 @@ while true; do
         1)
             run_script install_packages.sh
             run_script setup_dotfiles.sh
+            run_script setup_fish.sh
             run_script setup_git_ssh.sh
             run_script setup_security.sh
             run_script setup_dev_tools.sh
+            if [[ "$DISTRO_ID" == "fedora" ]]; then
+                run_script setup_fedora.sh
+            fi
             show_final_message
             break
             ;;
@@ -59,6 +68,8 @@ while true; do
         4) run_script setup_git_ssh.sh ;;
         5) run_script setup_security.sh ;;
         6) run_script setup_dev_tools.sh ;;
+        7) run_script setup_fish.sh ;;
+        8) run_script setup_fedora.sh ;;
         q|Q)
             log_info "Au revoir !"
             exit 0

@@ -26,6 +26,19 @@ link_config() {
 }
 
 log_step "Création des symlinks de configuration"
+
+# Nettoyage d'un éventuel fichier config.ghostty vide qui traînerait à côté
+# du fichier "config" principal (mauvais nom de fichier ignoré par ghostty)
+GHOSTTY_STRAY="$HOME/.config/ghostty/config.ghostty"
+if [[ -e "$GHOSTTY_STRAY" ]] && [[ ! -L "$GHOSTTY_STRAY" ]]; then
+    if [[ ! -s "$GHOSTTY_STRAY" ]]; then
+        rm -f "$GHOSTTY_STRAY"
+        log_info "config.ghostty vide supprimé (fichier attendu par ghostty : config)"
+    else
+        log_warn "$GHOSTTY_STRAY existe et n'est pas vide — non supprimé, vérifie son contenu manuellement"
+    fi
+fi
+
 link_config "fastfetch"    "$HOME/.config/fastfetch"
 link_config "ghostty"      "$HOME/.config/ghostty"
 link_config "zed"          "$HOME/.config/zed"
