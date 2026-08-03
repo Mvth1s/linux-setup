@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Appelé par /etc/dnf/libdnf5-plugins/actions.d/snapper.actions (post_transaction)
+# avec le numéro de snapshot "pre" en $1 (substitué par l'engine depuis
+# tmp.snapper_pre_number, défini par snapper-dnf5-pre).
+set -euo pipefail
+
+pre_number="${1:-}"
+
+if [[ -n "$pre_number" ]]; then
+    snapper create -t post --pre-number "$pre_number" -d 'dnf5 transaction'
+fi

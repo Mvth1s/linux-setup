@@ -7,7 +7,7 @@ font-family = "JetBrainsMono Nerd Font Mono"
 font-size = 13
 font-feature = calt, liga
 
-background-opacity = 0.93
+background-opacity = 0.85
 background-blur = 8
 
 window-padding-x = 14
@@ -15,15 +15,24 @@ window-padding-y = 14
 window-padding-balance = true
 window-padding-color = background
 
+# 70% environ d'un écran 1920x1080 avec JetBrainsMono Nerd Font Mono 13
+window-width = 169
+window-height = 42
+
 # ── Curseur ──────────────────────────────────────────────────
-cursor-style = bar
+# cursor-style = block obligatoire pour le shader custom-shader ci-dessous
+cursor-style = block
 cursor-style-blink = true
+custom-shader = shaders/cursor_smear_fade.glsl
 
 # ── Performance ──────────────────────────────────────────────
 gtk-single-instance = desktop
 scrollback-limit = 10000000
 
 # ── Intégration shell ────────────────────────────────────────
+# Force fish directement : évite d'attendre une déconnexion/reconnexion
+# de session après le changement de shell par défaut (chsh)
+command = fish
 shell-integration = detect
 shell-integration-features = cursor,sudo,title
 

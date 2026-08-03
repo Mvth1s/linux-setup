@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Appelé par /etc/dnf/libdnf5-plugins/actions.d/snapper.actions (pre_transaction).
+# Crée un snapshot "pre" et renvoie son numéro à l'engine libdnf5 via la
+# variable tmp.snapper_pre_number, réutilisée par snapper-dnf5-post.
+set -euo pipefail
+
+number="$(snapper create -t pre -p -d 'dnf5 transaction')"
+echo "tmp.snapper_pre_number=${number}"

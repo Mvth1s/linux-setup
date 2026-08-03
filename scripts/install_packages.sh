@@ -122,8 +122,54 @@ install_ghostty() {
         || log_warn "ghostty : échec, voir https://ghostty.org/docs/install"
 }
 
+# ── GitHub CLI (gh) ──────────────────────────────────────────
+install_gh() {
+    if cmd_exists gh; then
+        log_info "gh déjà présent"
+        return
+    fi
+
+    log_step "Installation de GitHub CLI (gh)"
+
+    case "$DISTRO_FAMILY" in
+        arch)
+            eval "$PKG_INSTALL github-cli"
+            ;;
+        debian)
+            if ! sudo apt-get install -y gh 2>/dev/null; then
+                log_info "gh non disponible via apt — ajout du dépôt officiel..."
+                sudo mkdir -p -m 755 /etc/apt/keyrings
+                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+                    | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
+                sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages/deb stable main" \
+                    | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+                sudo apt-get update
+                sudo apt-get install -y gh
+            fi
+            ;;
+        rhel)
+            if ! sudo dnf install -y gh 2>/dev/null; then
+                log_info "gh non disponible via dnf — ajout du dépôt officiel..."
+                sudo dnf install -y 'dnf-command(config-manager)'
+                sudo dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
+                sudo dnf install -y gh --repo gh-cli
+            fi
+            ;;
+        suse)
+            eval "$PKG_INSTALL gh" 2>/dev/null \
+                || log_warn "gh non disponible — voir https://github.com/cli/cli/blob/trunk/docs/install_linux.md"
+            ;;
+    esac
+
+    cmd_exists gh \
+        && log_success "gh installé : $(gh --version | head -1)" \
+        || log_warn "gh : échec, voir https://github.com/cli/cli/blob/trunk/docs/install_linux.md"
+}
+
 install_fastfetch
 install_ghostty
+install_gh
 
 log_step "Installation de Brave Browser"
 if ! cmd_exists brave-browser; then
