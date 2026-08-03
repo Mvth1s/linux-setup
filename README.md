@@ -55,6 +55,7 @@ chmod +x linux-setup/setup.sh linux-setup/scripts/*.sh
 
 ### Applications natives
 - **Brave Browser** — navigateur axé vie privée (script officiel)
+- **fastfetch**, **Ghostty**, **gh** (GitHub CLI) — paquet natif si disponible, sinon méthode d'installation officielle par distribution
 
 ### Applications Flatpak
 | Application | Description |

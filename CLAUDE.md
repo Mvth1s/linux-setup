@@ -135,9 +135,10 @@ net-tools nmap pipx imagemagick
 
 Cas particulier Debian/Ubuntu : `bat` s'appelle `batcat` → créer un lien `/usr/local/bin/bat → batcat` si `bat` n'existe pas déjà.
 
-### Fastfetch et Ghostty (installés ici, pas dans un script dédié)
+### Fastfetch, Ghostty et gh (installés ici, pas dans un script dédié)
 - **fastfetch** : paquet natif sur Arch ; sur les autres familles, binaire récupéré depuis la dernière release GitHub (`fastfetch-linux-<arch>.tar.gz`) et installé dans `/usr/local/bin`.
 - **ghostty** : paquet natif sur Arch/RHEL/SUSE ; sur Debian/Ubuntu, tente `apt-get install`, puis `snap install --classic` en repli, sinon `log_warn` avec lien vers la doc d'install binaire.
+- **gh** (GitHub CLI) : paquet `github-cli` sur Arch, `gh` natif sur SUSE ; sur Debian et RHEL, tente d'abord le paquet natif (`apt`/`dnf`), et si absent ajoute le dépôt officiel GitHub (`cli.github.com/packages/...`) avant réinstallation.
 
 ### Étape 3 — Brave Browser (⚠️ PAS via Flatpak)
 ```bash
