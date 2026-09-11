@@ -25,8 +25,8 @@ scripts/
   setup_security.sh               ← dépend de detect_distro.sh
   setup_dev_tools.sh              ← dépend de detect_distro.sh
   setup_fedora.sh                 ← dépend de detect_distro.sh, no-op si DISTRO_ID != fedora
-fastfetch/config.jsonc           ← logo désactivé ("type": "none")
-fastfetch/Chibi-Anime-PNG-Transparent-Image.png  ← inutilisée (logo off), gardée telle quelle
+fastfetch/config.jsonc           ← logo auto-détecté ("type": "auto")
+fastfetch/Chibi-Anime-PNG-Transparent-Image.png  ← inutilisée, gardée telle quelle
 ghostty/config                   ← nom exact attendu par ghostty (PAS config.ghostty)
 ghostty/shaders/cursor_smear_fade.glsl  ← récupéré de KroneCorylus/ghostty-shader-playground
 fedora/                          ← ressources copiées par setup_fedora.sh (snapper + libdnf5-plugin-actions)
