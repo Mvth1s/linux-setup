@@ -37,9 +37,11 @@ zed/settings.json
 zed/themes/
 zsh/.zshrc                       ← oh-my-posh + zinit (voir note ci-dessous)
 zsh/.aliases
-fish/config.fish                 ← PATH, greeting off, agent SSH auto
+fish/config.fish                 ← PATH, greeting off, agent SSH auto, thème (fish_color_*)
 fish/conf.d/aliases.fish         ← alias fish (port de zsh/.aliases)
 ```
+
+> ⚠️ `fish/` ne doit contenir QUE `config.fish` et `conf.d/aliases.fish` (les deux fichiers symlinkés par `setup_fish.sh`). Tout le reste (`functions/`, `completions/`, `fish_variables*`, `fish_plugins`, `conf.d/_tide_init.fish`, `conf.d/nvm.fish`, `conf.d/fish_frozen_*.fish`) est écrit automatiquement par Fisher ou par fish lui-même sur une machine donnée — jamais à committer (voir `.gitignore` et la section `scripts/setup_fish.sh` ci-dessous).
 
 ### Note importante sur zsh/.zshrc
 
@@ -226,14 +228,16 @@ Shell alternatif proposé comme défaut, en plus de zsh (voir « Deux shells coh
    - `fish/config.fish` → `~/.config/fish/config.fish`
    - `fish/conf.d/aliases.fish` → `~/.config/fish/conf.d/aliases.fish`
 
-   `~/.config/fish/conf.d/` reste un vrai répertoire (pas symlinké dans son ensemble) : Fisher y écrit ses propres fichiers de plugins (tide.fish, nvm.fish…) et ne doit pas polluer le dépôt git.
+   `~/.config/fish/conf.d/` reste un vrai répertoire (pas symlinké dans son ensemble) : Fisher y écrit ses propres fichiers de plugins (tide.fish, nvm.fish…) et ne doit pas polluer le dépôt git — ces fichiers, ainsi que `functions/`, `completions/`, `fish_variables*`, `fish_plugins` et les `fish_frozen_*.fish` générés par fish lors d'une montée de version, sont exclus via `.gitignore`.
 6. **Shell par défaut** : `confirm` puis `chsh -s fish` → repli `sudo chsh -s fish "$USER"` → repli `sudo usermod -s fish "$USER"`. Ajoute d'abord le chemin de fish à `/etc/shells` si absent (sinon `chsh` le refuse).
 
 ### fish/config.fish
-Chargé à chaque démarrage (interactif ou non) : `fish_add_path` pour `~/.local/bin`, `$EDITOR`, `$DOCKER_BUILDKIT`. En session interactive : `fish_greeting` vidé, `fastfetch` lancé, et démarrage/chargement automatique de l'agent SSH (voir section Git & SSH ci-dessous) avec garde-fou `set -g __linux_setup_ssh_agent_loaded` pour ne s'exécuter qu'une fois par session.
+Chargé à chaque démarrage (interactif ou non) : `fish_add_path` pour `~/.local/bin` et `~/.lmstudio/bin`, `$EDITOR`, `$DOCKER_BUILDKIT`, `fish_history_max`, et le thème de coloration syntaxique (`fish_color_*` / `fish_pager_color_*`, porté en dur ici pour rester reproductible sur une nouvelle machine — voir note ci-dessous). En session interactive uniquement : `fish_greeting` vidé, `fastfetch` lancé (`command -q fastfetch` avant), et démarrage/chargement automatique de l'agent SSH (voir section Git & SSH ci-dessous) avec garde-fou non exporté `set -g __linux_setup_ssh_agent_loaded` pour ne s'exécuter qu'une fois par session (et ne pas polluer l'environnement des sous-processus).
+
+> Le thème (`fish_color_*`) et les key-bindings ne doivent JAMAIS être repris depuis les fichiers `fish_frozen_*.fish` générés par fish — ils sont ignorés par git. Toute personnalisation de thème doit être ajoutée directement en dur dans `fish/config.fish` (`set -g fish_color_...`) pour rester reproductible sur une nouvelle machine.
 
 ### fish/conf.d/aliases.fish
-Port fonctionnel de `zsh/.aliases` en syntaxe fish (`alias`, `command -q`, `and`/`&&`) : navigation, ls→eza, cat→bat, git, docker, système, `mkcd`. Toute modification d'alias doit être répercutée dans les deux fichiers (zsh et fish) si elle doit s'appliquer aux deux shells.
+Port fonctionnel de `zsh/.aliases` en syntaxe fish (`alias`, `command -q`, `and`/`&&`) : navigation, ls→eza, cat→bat, git, docker, système, `mkcd`. Toute modification d'alias doit être répercutée dans les deux fichiers (zsh et fish) si elle doit s'appliquer aux deux shells — voir la liste exhaustive dans la section `zsh/.aliases et fish/conf.d/aliases.fish` plus bas.
 
 ---
 
@@ -384,12 +388,14 @@ Si l'un de ces trois fichiers dans `fedora/` doit changer de comportement, l'éq
 
 Les deux fichiers doivent rester équivalents fonctionnellement :
 - Navigation : `..`, `...`
-- ls → eza avec fallback ls classique
+- ls → eza avec fallback ls classique (`ls, ll, la, lt`, + `lth` côté fish)
 - cat → bat avec fallback
-- Git : `g, gs, ga, gc, gp, gl, gd, glog, gco, gb`
-- Docker : `d, dc, dps, dpsa, dclean`
+- Git : `gs, ga, gc, gcm, gcam, gp, gpl, gfp, gl (log), gr, gco, gcob, gcod, gcom, gb, gbr, gba, gbd, gbD, gbm, gst, gstp, gstl, gd, gds, grs, grb, gm, gsw, gswc`
+- Docker : `d, dc, dcu, dcd, dps, dlogs`
 - Système : `myip, ports, df, du, free`
-- Misc : `reload`, `please`, `mkcd`
+- Misc : `reload`, `please`, `ssh` (force `TERM=xterm-256color`), `mkcd`
+
+> `gl` = `git log --oneline --graph --decorate` (pas `git pull`, qui est `gpl`). Pas d'alias `glog` séparé ni d'alias bare `g` — supprimés lors de l'alignement zsh/fish.
 
 ---
 
@@ -400,7 +406,7 @@ Fichier attendu par ghostty sous le nom exact `config` (pas `config.ghostty` —
 - `custom-shader = shaders/cursor_smear_fade.glsl` (chemin relatif au dossier de config ghostty, donc au dossier `ghostty/` du repo une fois symlinké)
 - `command = fish` : lance fish directement au démarrage du terminal, sans dépendre du changement de shell par défaut (`chsh`) qui ne prend effet qu'à la reconnexion
 - `window-width = 169`, `window-height = 42` (~70 % d'un écran 1920×1080 en JetBrainsMono Nerd Font Mono 13)
-- `background-opacity = 0.85`
+- `background-opacity = 0.93`
 
 ---
 
@@ -434,6 +440,15 @@ Fichier attendu par ghostty sous le nom exact `config` (pas `config.ghostty` —
 *.key
 *.log
 .dotfiles_backup/
+
+# fish : fichiers gérés par Fisher / l'état runtime de fish, jamais à committer
+fish/functions/
+fish/completions/
+fish/fish_variables*
+fish/fish_plugins
+fish/conf.d/_tide_init.fish
+fish/conf.d/nvm.fish
+fish/conf.d/fish_frozen_*.fish
 ```
 
 ---

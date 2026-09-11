@@ -3,3 +3,14 @@
 *.key
 *.log
 .dotfiles_backup/
+
+# fish : fichiers gérés par Fisher / l'état runtime de fish, jamais à committer
+# (setup_fish.sh les régénère via `fisher install` ; seuls config.fish et
+# conf.d/aliases.fish sont symlinkés vers le repo)
+fish/functions/
+fish/completions/
+fish/fish_variables*
+fish/fish_plugins
+fish/conf.d/_tide_init.fish
+fish/conf.d/nvm.fish
+fish/conf.d/fish_frozen_*.fish
