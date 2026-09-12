@@ -37,15 +37,15 @@ EOF
     log_success "DNS Quad9 configuré via systemd-resolved"
 else
     log_info "systemd-resolved inactif — écriture directe dans /etc/resolv.conf"
-    if [[ -f /etc/resolv.conf ]]; then
+    NEW_RESOLV_CONTENT=$'nameserver 9.9.9.9\nnameserver 149.112.112.112\nnameserver 1.1.1.1\n'
+    if [[ -f /etc/resolv.conf ]] && ! diff -q <(printf '%s' "$NEW_RESOLV_CONTENT") /etc/resolv.conf &>/dev/null; then
         sudo cp /etc/resolv.conf "/etc/resolv.conf.backup.$(date '+%Y%m%d_%H%M%S')"
-        log_info "Backup de /etc/resolv.conf créé"
+        log_info "Backup de /etc/resolv.conf créé (contenu modifié)"
+        ls -1t /etc/resolv.conf.backup.* 2>/dev/null | tail -n +4 | xargs -r sudo rm -f
+    elif [[ -f /etc/resolv.conf ]]; then
+        log_info "/etc/resolv.conf déjà à jour — pas de backup nécessaire"
     fi
-    sudo tee /etc/resolv.conf > /dev/null <<'EOF'
-nameserver 9.9.9.9
-nameserver 149.112.112.112
-nameserver 1.1.1.1
-EOF
+    printf '%s' "$NEW_RESOLV_CONTENT" | sudo tee /etc/resolv.conf > /dev/null
     log_success "DNS Quad9 configuré dans /etc/resolv.conf"
 fi
 

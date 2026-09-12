@@ -58,21 +58,26 @@ install_fastfetch() {
 
     case "$DISTRO_FAMILY" in
         arch)
-            eval "$PKG_INSTALL fastfetch"
+            IFS=' ' read -ra _install_cmd <<< "$PKG_INSTALL"
+            "${_install_cmd[@]}" fastfetch
             ;;
         debian|rhel|suse)
             local tmp_dir
             tmp_dir=$(mktemp -d)
             local url="https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-${arch}.tar.gz"
-            curl -Lo "$tmp_dir/fastfetch.tar.gz" "$url"
-            sudo tar xf "$tmp_dir/fastfetch.tar.gz" \
-                --strip-components=3 \
-                -C /usr/local/bin \
-                "fastfetch-linux-${arch}/usr/bin/fastfetch" 2>/dev/null \
-                || sudo tar xf "$tmp_dir/fastfetch.tar.gz" \
-                    --wildcards \
-                    -O '*/fastfetch' | sudo tee /usr/local/bin/fastfetch > /dev/null
-            sudo chmod +x /usr/local/bin/fastfetch
+            if curl -fLo "$tmp_dir/fastfetch.tar.gz" "$url" \
+                && { sudo tar xf "$tmp_dir/fastfetch.tar.gz" \
+                        --strip-components=3 \
+                        -C /usr/local/bin \
+                        "fastfetch-linux-${arch}/usr/bin/fastfetch" 2>/dev/null \
+                    || sudo tar xf "$tmp_dir/fastfetch.tar.gz" \
+                        --wildcards \
+                        -O '*/fastfetch' | sudo tee /usr/local/bin/fastfetch > /dev/null; }
+            then
+                sudo chmod +x /usr/local/bin/fastfetch
+            else
+                log_warn "fastfetch : échec du téléchargement/extraction du binaire"
+            fi
             rm -rf "$tmp_dir"
             ;;
     esac
@@ -91,9 +96,10 @@ install_ghostty() {
 
     log_step "Installation de Ghostty"
 
+    IFS=' ' read -ra _install_cmd <<< "$PKG_INSTALL"
     case "$DISTRO_FAMILY" in
         arch)
-            eval "$PKG_INSTALL ghostty"
+            "${_install_cmd[@]}" ghostty
             ;;
         debian)
             if sudo apt-get install -y ghostty 2>/dev/null; then
@@ -108,11 +114,11 @@ install_ghostty() {
             fi
             ;;
         rhel)
-            eval "$PKG_INSTALL ghostty" 2>/dev/null \
+            "${_install_cmd[@]}" ghostty 2>/dev/null \
                 || log_warn "ghostty non disponible — voir https://ghostty.org/docs/install"
             ;;
         suse)
-            eval "$PKG_INSTALL ghostty" 2>/dev/null \
+            "${_install_cmd[@]}" ghostty 2>/dev/null \
                 || log_warn "ghostty non disponible — voir https://ghostty.org/docs/install"
             ;;
     esac
@@ -131,33 +137,44 @@ install_gh() {
 
     log_step "Installation de GitHub CLI (gh)"
 
+    IFS=' ' read -ra _install_cmd <<< "$PKG_INSTALL"
     case "$DISTRO_FAMILY" in
         arch)
-            eval "$PKG_INSTALL github-cli"
+            "${_install_cmd[@]}" github-cli
             ;;
         debian)
             if ! sudo apt-get install -y gh 2>/dev/null; then
                 log_info "gh non disponible via apt — ajout du dépôt officiel..."
-                sudo mkdir -p -m 755 /etc/apt/keyrings
-                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-                    | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
-                sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages/deb stable main" \
-                    | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-                sudo apt-get update
-                sudo apt-get install -y gh
+                if sudo mkdir -p -m 755 /etc/apt/keyrings \
+                    && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+                        | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+                    && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+                    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages/deb stable main" \
+                        | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+                    && sudo apt-get update \
+                    && sudo apt-get install -y gh
+                then
+                    :
+                else
+                    log_warn "gh : échec de l'ajout du dépôt officiel"
+                fi
             fi
             ;;
         rhel)
             if ! sudo dnf install -y gh 2>/dev/null; then
                 log_info "gh non disponible via dnf — ajout du dépôt officiel..."
-                sudo dnf install -y 'dnf-command(config-manager)'
-                sudo dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
-                sudo dnf install -y gh --repo gh-cli
+                if sudo dnf install -y 'dnf-command(config-manager)' \
+                    && sudo dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo \
+                    && sudo dnf install -y gh --repo gh-cli
+                then
+                    :
+                else
+                    log_warn "gh : échec de l'ajout du dépôt officiel"
+                fi
             fi
             ;;
         suse)
-            eval "$PKG_INSTALL gh" 2>/dev/null \
+            "${_install_cmd[@]}" gh 2>/dev/null \
                 || log_warn "gh non disponible — voir https://github.com/cli/cli/blob/trunk/docs/install_linux.md"
             ;;
     esac
@@ -174,8 +191,11 @@ install_gh
 log_step "Installation de Brave Browser"
 if ! cmd_exists brave-browser; then
     log_info "Installation de Brave via le script officiel..."
-    curl -fsS https://dl.brave.com/install.sh | sh
-    log_success "Brave Browser installé"
+    if curl -fsS https://dl.brave.com/install.sh | sh; then
+        log_success "Brave Browser installé"
+    else
+        log_warn "Brave : échec de l'installation (réseau ?)"
+    fi
 else
     log_info "Brave Browser déjà présent"
 fi

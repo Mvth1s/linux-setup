@@ -23,11 +23,18 @@ log_step "Installation de nvm + Node.js LTS"
 
 if [[ ! -d "$HOME/.nvm" ]]; then
     log_info "Récupération de la dernière version de nvm..."
-    nvm_version=$(curl -s https://api.github.com/repos/nvm-sh/nvm/releases/latest \
-        | grep '"tag_name"' | cut -d'"' -f4)
+    nvm_version="$(curl -fsS https://api.github.com/repos/nvm-sh/nvm/releases/latest 2>/dev/null \
+        | grep '"tag_name"' | cut -d'"' -f4 || true)"
+    if [[ -z "$nvm_version" ]]; then
+        nvm_version="v0.40.1"
+        log_warn "Impossible de récupérer la dernière version de nvm via l'API GitHub — repli sur $nvm_version"
+    fi
     log_info "Installation de nvm $nvm_version..."
-    curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_version}/install.sh" | bash
-    log_success "nvm installé"
+    if curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_version}/install.sh" | bash; then
+        log_success "nvm installé"
+    else
+        log_warn "nvm : échec de l'installation — Node/pnpm ignorés"
+    fi
 else
     log_info "nvm déjà présent"
 fi
@@ -38,18 +45,24 @@ export NVM_DIR="$HOME/.nvm"
 # shellcheck source=/dev/null
 [[ -s "$NVM_DIR/nvm.sh" ]] && source "$NVM_DIR/nvm.sh"
 
-if ! nvm ls lts/* 2>/dev/null | grep -q "lts/"; then
-    log_info "Installation de Node.js LTS..."
-    nvm install --lts
-    nvm use --lts
-    log_success "Node.js LTS installé : $(node --version)"
+if cmd_exists nvm; then
+    if ! nvm ls lts/* 2>/dev/null | grep -q "lts/"; then
+        log_info "Installation de Node.js LTS..."
+        nvm install --lts
+        nvm use --lts
+        log_success "Node.js LTS installé : $(node --version)"
+    else
+        log_info "Node.js LTS déjà installé : $(node --version)"
+    fi
 else
-    log_info "Node.js LTS déjà installé : $(node --version)"
+    log_warn "nvm indisponible — Node.js/pnpm ignorés"
 fi
 set -u
 
 log_step "Installation de pnpm"
-if ! cmd_exists pnpm; then
+if ! cmd_exists nvm; then
+    log_warn "nvm indisponible — pnpm ignoré"
+elif ! cmd_exists pnpm; then
     log_info "Installation de pnpm..."
     npm install -g pnpm
     log_success "pnpm installé : $(pnpm --version)"
@@ -67,8 +80,11 @@ if check_disk_space 5 "Docker"; then
                 "${_install_cmd[@]}" docker docker-compose
                 ;;
             debian)
-                curl -fsSL https://get.docker.com | sudo sh
-                sudo apt install -y docker-compose-plugin
+                if curl -fsSL https://get.docker.com | sudo sh; then
+                    sudo apt install -y docker-compose-plugin
+                else
+                    log_warn "Docker : échec de l'installation via get.docker.com"
+                fi
                 ;;
             rhel)
                 sudo dnf install -y moby-engine docker-compose
@@ -92,8 +108,11 @@ log_step "Installation d'Ollama"
 if check_disk_space 8 "Ollama"; then
     if ! cmd_exists ollama; then
         log_info "Installation d'Ollama..."
-        curl -fsSL https://ollama.com/install.sh | sh
-        log_success "Ollama installé"
+        if curl -fsSL https://ollama.com/install.sh | sh; then
+            log_success "Ollama installé"
+        else
+            log_warn "Ollama : échec de l'installation"
+        fi
     else
         log_info "Ollama déjà présent"
     fi
@@ -105,8 +124,11 @@ log_step "Installation de Zed"
 if check_disk_space 1 "Zed"; then
     if ! cmd_exists zed; then
         log_info "Installation de Zed..."
-        curl -fsSL https://zed.dev/install.sh | sh
-        log_success "Zed installé"
+        if curl -fsSL https://zed.dev/install.sh | sh; then
+            log_success "Zed installé"
+        else
+            log_warn "Zed : échec de l'installation"
+        fi
     else
         log_info "Zed déjà présent"
     fi

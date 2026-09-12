@@ -93,7 +93,21 @@ _generate_key() {
 
     local passphrase
     passphrase="$(_prompt_passphrase "$label")"
-    ssh-keygen -t ed25519 -C "$email" -f "$key_path" -N "$passphrase"
+
+    # Passe la passphrase via SSH_ASKPASS plutôt qu'en argument -N : un
+    # argument de ligne de commande est visible par d'autres utilisateurs
+    # locaux via ps/proc/<pid>/cmdline, une variable d'env ne l'est pas.
+    local askpass_script
+    askpass_script="$(mktemp)"
+    chmod 700 "$askpass_script"
+    cat > "$askpass_script" <<'EOF'
+#!/usr/bin/env bash
+printf '%s' "$SSH_KEYGEN_PASSPHRASE"
+EOF
+    SSH_KEYGEN_PASSPHRASE="$passphrase" SSH_ASKPASS="$askpass_script" SSH_ASKPASS_REQUIRE=force \
+        ssh-keygen -t ed25519 -C "$email" -f "$key_path" < /dev/null
+    rm -f "$askpass_script"
+
     chmod 600 "$key_path"
     chmod 644 "${key_path}.pub"
     log_success "Clé SSH générée : $key_path"
@@ -130,7 +144,23 @@ add_ssh_host_block "github.com"   "github.com"                       "$GITHUB_KE
 add_ssh_host_block "gitlab-etna"  "rendu-git.etna-alternance.net"     "$GITLAB_ETNA_KEY"
 
 log_step "Ajout des clés au ssh-agent"
-eval "$(ssh-agent -s)" > /dev/null
+
+_agent_reachable() {
+    [[ -n "${SSH_AUTH_SOCK:-}" ]] || return 1
+    ssh-add -l &>/dev/null
+    local rc=$?
+    # 0 = agent vivant avec des clés, 1 = agent vivant sans clé — les deux
+    # signifient qu'il est réutilisable. 2 = agent injoignable.
+    [[ $rc -eq 0 || $rc -eq 1 ]]
+}
+
+if _agent_reachable; then
+    log_info "ssh-agent déjà actif — réutilisation de l'agent existant"
+else
+    eval "$(ssh-agent -s)" > /dev/null
+    log_success "Nouvel ssh-agent démarré (PID ${SSH_AGENT_PID:-?})"
+fi
+
 ssh-add "$GITHUB_KEY" 2>/dev/null || log_warn "Impossible d'ajouter $GITHUB_KEY à l'agent (passphrase incorrecte ?)"
 ssh-add "$GITLAB_ETNA_KEY" 2>/dev/null || log_warn "Impossible d'ajouter $GITLAB_ETNA_KEY à l'agent (passphrase incorrecte ?)"
 log_success "Clés ajoutées au ssh-agent"

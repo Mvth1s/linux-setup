@@ -51,8 +51,11 @@ link_config "zsh/.aliases" "$HOME/.aliases"
 log_step "Installation de oh-my-posh"
 if ! cmd_exists oh-my-posh; then
     log_info "Installation de oh-my-posh..."
-    curl -s https://ohmyposh.dev/install.sh | bash -s
-    log_success "oh-my-posh installé"
+    if curl -s https://ohmyposh.dev/install.sh | bash -s; then
+        log_success "oh-my-posh installé"
+    else
+        log_warn "oh-my-posh : échec de l'installation (réseau ?)"
+    fi
 else
     log_info "oh-my-posh déjà présent"
 fi
@@ -79,8 +82,11 @@ ZINIT_HOME="$HOME/.local/share/zinit/zinit.git"
 if [[ ! -d "$ZINIT_HOME" ]]; then
     log_info "Installation de zinit..."
     mkdir -p "$(dirname "$ZINIT_HOME")"
-    git clone https://github.com/zdharma-continuum/zinit "$ZINIT_HOME"
-    log_success "zinit installé"
+    if git clone https://github.com/zdharma-continuum/zinit "$ZINIT_HOME"; then
+        log_success "zinit installé"
+    else
+        log_warn "zinit : échec du clone (réseau ?)"
+    fi
 else
     log_info "zinit déjà présent"
 fi

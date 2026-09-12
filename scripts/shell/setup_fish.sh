@@ -44,16 +44,22 @@ log_step "Installation de Fisher"
 if fish -c "functions -q fisher" 2>/dev/null; then
     log_info "Fisher déjà présent"
 else
-    fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'
-    log_success "Fisher installé"
+    if fish -c 'curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher'; then
+        log_success "Fisher installé"
+    else
+        log_warn "Fisher : échec de l'installation (réseau ?)"
+    fi
 fi
 
 log_step "Installation du plugin nvm.fish"
 if fish -c "functions -q nvm" 2>/dev/null; then
     log_info "nvm.fish déjà présent"
 else
-    fish -c "fisher install jorgebucaran/nvm.fish"
-    log_success "nvm.fish installé"
+    if fish -c "fisher install jorgebucaran/nvm.fish"; then
+        log_success "nvm.fish installé"
+    else
+        log_warn "nvm.fish : échec de l'installation"
+    fi
 fi
 
 log_step "Installation de Tide"
