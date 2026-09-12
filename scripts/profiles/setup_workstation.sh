@@ -6,61 +6,171 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$SCRIPT_DIR/../core/utils.sh"
 [[ -z "${DISTRO_FAMILY:-}" ]] && source "$SCRIPT_DIR/../core/detect_distro.sh"
 
-if [[ "$DISTRO_ID" != "fedora" ]]; then
-    log_warn "Ce script est spécifique à Fedora — distribution détectée : $DISTRO_ID"
-    log_info "Rien à faire, sortie."
-    exit 0
-fi
+log_step "Activation des dépôts de paquets non-libres / codecs"
+case "$DISTRO_FAMILY" in
+    rhel)
+        FEDORA_VERSION="$(rpm -E %fedora)"
+        if ! rpm -q rpmfusion-free-release &>/dev/null; then
+            sudo dnf install -y "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm"
+            log_success "RPM Fusion free activé"
+        else
+            log_info "RPM Fusion free déjà activé"
+        fi
+        if ! rpm -q rpmfusion-nonfree-release &>/dev/null; then
+            sudo dnf install -y "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm"
+            log_success "RPM Fusion nonfree activé"
+        else
+            log_info "RPM Fusion nonfree déjà activé"
+        fi
+        ;;
+    debian)
+        _sources_file="/etc/apt/sources.list"
+        [[ -f /etc/apt/sources.list.d/debian.sources ]] && _sources_file="/etc/apt/sources.list.d/debian.sources"
+        if grep -qE "non-free-firmware|non-free\b" "$_sources_file" 2>/dev/null; then
+            log_info "Composants contrib/non-free déjà activés"
+        else
+            log_warn "Composants contrib/non-free/non-free-firmware non détectés dans $_sources_file"
+            log_warn "Active-les manuellement si besoin (codecs, pilotes propriétaires) : https://wiki.debian.org/SourcesList"
+        fi
+        ;;
+    suse)
+        if sudo zypper lr 2>/dev/null | grep -qi packman; then
+            log_info "Dépôt Packman déjà activé"
+        else
+            _suse_id="$(. /etc/os-release && echo "$ID")"
+            if [[ "$_suse_id" == *tumbleweed* ]]; then
+                _packman_url="https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Tumbleweed/"
+            else
+                _suse_version="$(. /etc/os-release && echo "$VERSION_ID")"
+                _packman_url="https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Leap_${_suse_version}/"
+            fi
+            if sudo zypper ar -cfp 90 "$_packman_url" packman \
+                && sudo zypper --gpg-auto-import-keys refresh
+            then
+                log_success "Dépôt Packman activé"
+            else
+                log_warn "Échec activation du dépôt Packman — voir https://packman.links2linux.org/"
+            fi
+        fi
+        ;;
+    arch)
+        log_info "AUR couvre déjà les paquets non-libres — rien à faire"
+        ;;
+esac
 
-log_step "Activation de RPM Fusion (free + nonfree)"
-FEDORA_VERSION="$(rpm -E %fedora)"
-if ! rpm -q rpmfusion-free-release &>/dev/null; then
-    sudo dnf install -y "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm"
-    log_success "RPM Fusion free activé"
-else
-    log_info "RPM Fusion free déjà activé"
-fi
-if ! rpm -q rpmfusion-nonfree-release &>/dev/null; then
-    sudo dnf install -y "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm"
-    log_success "RPM Fusion nonfree activé"
-else
-    log_info "RPM Fusion nonfree déjà activé"
-fi
-
-log_step "Installation de Docker (moby-engine)"
+log_step "Installation de Docker"
 if ! cmd_exists docker; then
-    sudo dnf install -y moby-engine docker-compose
-    log_success "Docker (moby-engine) installé"
-else
-    log_info "Docker déjà présent"
+    case "$DISTRO_FAMILY" in
+        arch)
+            IFS=' ' read -ra _install_cmd <<< "$PKG_INSTALL"
+            "${_install_cmd[@]}" docker docker-compose
+            ;;
+        debian)
+            if curl -fsSL https://get.docker.com | sudo sh; then
+                sudo apt install -y docker-compose-plugin
+            else
+                log_warn "Docker : échec de l'installation via get.docker.com"
+            fi
+            ;;
+        rhel)
+            sudo dnf install -y moby-engine docker-compose
+            ;;
+        suse)
+            sudo zypper install -y docker docker-compose
+            ;;
+    esac
 fi
-sudo systemctl enable --now docker
-sudo usermod -aG docker "$USER"
-log_success "Docker activé — re-login requis pour l'utiliser sans sudo"
+if cmd_exists docker; then
+    log_success "Docker installé"
+    sudo systemctl enable --now docker
+    sudo usermod -aG docker "$USER"
+    log_success "Docker activé — re-login requis pour l'utiliser sans sudo"
+else
+    log_warn "Docker : installation incomplète"
+fi
 
 log_step "Installation de kubectl"
-if ! cmd_exists kubectl; then
-    sudo dnf install -y kubernetes-client
-    log_success "kubectl installé"
-else
+if cmd_exists kubectl; then
     log_info "kubectl déjà présent"
+else
+    case "$DISTRO_FAMILY" in
+        rhel) sudo dnf install -y kubernetes-client ;;
+        suse) sudo zypper install -y kubernetes-client ;;
+        arch)
+            IFS=' ' read -ra _install_cmd <<< "$PKG_INSTALL"
+            if ! "${_install_cmd[@]}" kubectl 2>/dev/null && [[ -n "$AUR_HELPER" ]]; then
+                "$AUR_HELPER" -S --noconfirm kubectl-bin \
+                    || log_warn "kubectl : échec de l'installation (officiel et AUR)"
+            fi
+            ;;
+        debian)
+            # Dépôt officiel Kubernetes — bump la version mineure (v1.31) périodiquement.
+            if sudo mkdir -p -m 755 /etc/apt/keyrings \
+                && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key \
+                    | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg \
+                && echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /" \
+                    | sudo tee /etc/apt/sources.list.d/kubernetes.list > /dev/null \
+                && sudo apt-get update \
+                && sudo apt-get install -y kubectl
+            then
+                : # succès, log_success générique ci-dessous
+            else
+                log_warn "kubectl : échec de l'installation via le dépôt officiel Kubernetes"
+            fi
+            ;;
+    esac
+    cmd_exists kubectl && log_success "kubectl installé" || log_warn "kubectl : installation incomplète"
 fi
 
 log_step "Installation de yazi (remplace ranger)"
-if ! cmd_exists yazi; then
-    sudo dnf copr enable -y lihaohong/yazi
-    sudo dnf install -y yazi
-    log_success "yazi installé"
-else
+if cmd_exists yazi; then
     log_info "yazi déjà présent"
+else
+    case "$DISTRO_FAMILY" in
+        rhel)
+            sudo dnf copr enable -y lihaohong/yazi
+            sudo dnf install -y yazi
+            ;;
+        arch)
+            IFS=' ' read -ra _install_cmd <<< "$PKG_INSTALL"
+            "${_install_cmd[@]}" yazi
+            ;;
+        debian|suse)
+            _yazi_url="$(curl -fsS https://api.github.com/repos/sxyazi/yazi/releases/latest 2>/dev/null \
+                | grep 'browser_download_url.*yazi-x86_64-unknown-linux-musl.zip' \
+                | cut -d'"' -f4 || true)"
+            if [[ -n "$_yazi_url" ]]; then
+                _tmp_dir="$(mktemp -d)"
+                if curl -fLo "$_tmp_dir/yazi.zip" "$_yazi_url" \
+                    && unzip -q "$_tmp_dir/yazi.zip" -d "$_tmp_dir" \
+                    && sudo install -m 755 "$_tmp_dir"/yazi-*/yazi /usr/local/bin/yazi \
+                    && sudo install -m 755 "$_tmp_dir"/yazi-*/ya /usr/local/bin/ya
+                then
+                    : # succès, log_success générique ci-dessous
+                else
+                    log_warn "yazi : échec de l'extraction du binaire"
+                fi
+                rm -rf "$_tmp_dir"
+            else
+                log_warn "yazi : impossible de récupérer l'URL de la dernière release GitHub"
+            fi
+            ;;
+    esac
+    cmd_exists yazi && log_success "yazi installé" || log_warn "yazi : installation incomplète, ranger conservé"
 fi
-if cmd_exists ranger; then
-    sudo dnf remove -y ranger
+if cmd_exists ranger && cmd_exists yazi; then
+    case "$DISTRO_FAMILY" in
+        arch)   sudo pacman -Rns --noconfirm ranger ;;
+        debian) sudo apt remove -y ranger ;;
+        rhel)   sudo dnf remove -y ranger ;;
+        suse)   sudo zypper remove -y ranger ;;
+    esac
     log_info "ranger désinstallé (remplacé par yazi)"
 fi
 
 log_step "Installation de lynis + rkhunter"
-sudo dnf install -y lynis rkhunter
+IFS=' ' read -ra _install_cmd <<< "$PKG_INSTALL"
+"${_install_cmd[@]}" lynis rkhunter
 sudo rkhunter --propupd
 log_success "lynis + rkhunter installés, base de référence rkhunter créée"
 
@@ -79,11 +189,16 @@ if flatpak list --app 2>/dev/null | grep -q org.onlyoffice.desktopeditors; then
     done
     log_success "OnlyOffice défini par défaut (docx/xlsx/pptx/odt/ods/odp)"
 else
-    log_warn "OnlyOffice (Flatpak) non installé — lance d'abord install_packages.sh"
+    log_warn "OnlyOffice (Flatpak) non installé — lance d'abord packages/install_packages.sh"
 fi
 
-if rpm -qa | grep -q '^libreoffice'; then
-    sudo dnf remove -y 'libreoffice*'
+if cmd_exists libreoffice || cmd_exists soffice; then
+    case "$DISTRO_FAMILY" in
+        arch)   sudo pacman -Rns --noconfirm libreoffice-fresh libreoffice-still 2>/dev/null || true ;;
+        debian) sudo apt remove -y 'libreoffice*' ;;
+        rhel)   sudo dnf remove -y 'libreoffice*' ;;
+        suse)   sudo zypper remove -y 'libreoffice*' ;;
+    esac
     log_success "LibreOffice désinstallé"
 else
     log_info "LibreOffice non présent"
@@ -97,12 +212,21 @@ else
     log_warn "gsettings absent — option XKB non appliquée (nécessite GNOME)"
 fi
 
-log_step "Snapshots Btrfs automatiques (snapper + dnf5)"
+log_step "Snapshots Btrfs automatiques"
 if [[ "$(findmnt -no FSTYPE / 2>/dev/null)" != "btrfs" ]]; then
     log_warn "La racine (/) n'est pas en Btrfs — snapshots snapper ignorés"
 else
     IFS=' ' read -ra _install_cmd <<< "$PKG_INSTALL"
-    "${_install_cmd[@]}" snapper libdnf5-plugin-actions
+    case "$DISTRO_FAMILY" in
+        rhel)  "${_install_cmd[@]}" snapper libdnf5-plugin-actions ;;
+        arch)  "${_install_cmd[@]}" snapper snap-pac ;;
+        debian) "${_install_cmd[@]}" snapper ;;
+        suse)
+            "${_install_cmd[@]}" snapper
+            "${_install_cmd[@]}" snapper-zypp-plugin 2>/dev/null \
+                || log_info "snapper-zypp-plugin non trouvé séparément — probablement déjà inclus avec snapper sur cette version d'openSUSE"
+            ;;
+    esac
 
     if ! sudo snapper list-configs 2>/dev/null | grep -q '^root '; then
         sudo snapper --config root create-config /
@@ -117,14 +241,29 @@ else
         -e 's/^NUMBER_MIN_AGE=.*/NUMBER_MIN_AGE="1800"/' \
         /etc/snapper/configs/root
 
-    sudo install -m 755 "$REPO_ROOT/snapper/dnf5/snapper-dnf5-pre"  /usr/local/bin/snapper-dnf5-pre
-    sudo install -m 755 "$REPO_ROOT/snapper/dnf5/snapper-dnf5-post" /usr/local/bin/snapper-dnf5-post
-
-    sudo mkdir -p /etc/dnf/libdnf5-plugins/actions.d
-    sudo install -m 644 "$REPO_ROOT/snapper/dnf5/snapper.actions" /etc/dnf/libdnf5-plugins/actions.d/snapper.actions
+    case "$DISTRO_FAMILY" in
+        rhel)
+            sudo install -m 755 "$REPO_ROOT/snapper/dnf5/snapper-dnf5-pre"  /usr/local/bin/snapper-dnf5-pre
+            sudo install -m 755 "$REPO_ROOT/snapper/dnf5/snapper-dnf5-post" /usr/local/bin/snapper-dnf5-post
+            sudo mkdir -p /etc/dnf/libdnf5-plugins/actions.d
+            sudo install -m 644 "$REPO_ROOT/snapper/dnf5/snapper.actions" /etc/dnf/libdnf5-plugins/actions.d/snapper.actions
+            log_success "Snapshots automatiques configurés (snapper + libdnf5-plugin-actions)"
+            ;;
+        arch)
+            log_success "Snapshots automatiques configurés (snapper + snap-pac, hooks pacman natifs)"
+            ;;
+        debian)
+            sudo install -m 755 "$REPO_ROOT/snapper/apt/snapper-apt-pre"  /usr/local/bin/snapper-apt-pre
+            sudo install -m 755 "$REPO_ROOT/snapper/apt/snapper-apt-post" /usr/local/bin/snapper-apt-post
+            sudo install -m 644 "$REPO_ROOT/snapper/apt/80snapper" /etc/apt/apt.conf.d/80snapper
+            log_success "Snapshots automatiques configurés (snapper + hooks apt)"
+            ;;
+        suse)
+            log_success "Snapshots automatiques configurés (snapper — plugin zypp natif sur openSUSE)"
+            ;;
+    esac
 
     sudo systemctl enable --now snapper-cleanup.timer
-    log_success "Snapshots Btrfs automatiques configurés (snapper + libdnf5-plugin-actions)"
 fi
 
 log_step "Correctif barre de titre Spotify (GNOME/Wayland)"
@@ -135,4 +274,4 @@ else
     log_warn "Spotify (Flatpak) non installé — correctif ignoré"
 fi
 
-log_success "Extras Fedora configurés"
+log_success "Extras Workstation configurés"
