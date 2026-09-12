@@ -2,9 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-source "$SCRIPT_DIR/utils.sh"
-[[ -z "${DISTRO_FAMILY:-}" ]] && source "$SCRIPT_DIR/detect_distro.sh"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+source "$SCRIPT_DIR/../core/utils.sh"
+[[ -z "${DISTRO_FAMILY:-}" ]] && source "$SCRIPT_DIR/../core/detect_distro.sh"
 
 BACKUP_TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
 BACKUP_DIR="$HOME/.dotfiles_backup/$BACKUP_TIMESTAMP"

@@ -2,9 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-source "$SCRIPT_DIR/utils.sh"
-[[ -z "${DISTRO_FAMILY:-}" ]] && source "$SCRIPT_DIR/detect_distro.sh"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+source "$SCRIPT_DIR/../core/utils.sh"
+[[ -z "${DISTRO_FAMILY:-}" ]] && source "$SCRIPT_DIR/../core/detect_distro.sh"
 
 if [[ "$DISTRO_ID" != "fedora" ]]; then
     log_warn "Ce script est spécifique à Fedora — distribution détectée : $DISTRO_ID"
@@ -117,11 +117,11 @@ else
         -e 's/^NUMBER_MIN_AGE=.*/NUMBER_MIN_AGE="1800"/' \
         /etc/snapper/configs/root
 
-    sudo install -m 755 "$REPO_ROOT/fedora/snapper-dnf5-pre"  /usr/local/bin/snapper-dnf5-pre
-    sudo install -m 755 "$REPO_ROOT/fedora/snapper-dnf5-post" /usr/local/bin/snapper-dnf5-post
+    sudo install -m 755 "$REPO_ROOT/snapper/dnf5/snapper-dnf5-pre"  /usr/local/bin/snapper-dnf5-pre
+    sudo install -m 755 "$REPO_ROOT/snapper/dnf5/snapper-dnf5-post" /usr/local/bin/snapper-dnf5-post
 
     sudo mkdir -p /etc/dnf/libdnf5-plugins/actions.d
-    sudo install -m 644 "$REPO_ROOT/fedora/snapper.actions" /etc/dnf/libdnf5-plugins/actions.d/snapper.actions
+    sudo install -m 644 "$REPO_ROOT/snapper/dnf5/snapper.actions" /etc/dnf/libdnf5-plugins/actions.d/snapper.actions
 
     sudo systemctl enable --now snapper-cleanup.timer
     log_success "Snapshots Btrfs automatiques configurés (snapper + libdnf5-plugin-actions)"
