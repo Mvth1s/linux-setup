@@ -1,0 +1,7 @@
+// /etc/apt/apt.conf.d/80snapper
+//
+// Équivalent Debian/Ubuntu du plugin libdnf5-plugin-actions de Fedora :
+// crée un snapshot Btrfs "pre" avant chaque transaction dpkg et un
+// snapshot "post" juste après.
+DPkg::Pre-Invoke {"/usr/local/bin/snapper-apt-pre";};
+DPkg::Post-Invoke {"/usr/local/bin/snapper-apt-post";};

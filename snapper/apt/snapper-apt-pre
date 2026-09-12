@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Appelé par /etc/apt/apt.conf.d/80snapper (DPkg::Pre-Invoke).
+# Crée un snapshot "pre" et stocke son numéro dans un fichier temporaire,
+# lu par snapper-apt-post (pas de mécanisme de substitution de variables
+# côté apt/dpkg, contrairement au plugin libdnf5-plugin-actions de Fedora).
+set -euo pipefail
+
+number="$(snapper create -t pre -p -d 'apt transaction')"
+echo "$number" > /run/snapper-apt-pre-number

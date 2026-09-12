@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Appelé par /etc/apt/apt.conf.d/80snapper (DPkg::Post-Invoke).
+# Lit le numéro de snapshot "pre" écrit par snapper-apt-pre et crée le
+# snapshot "post" correspondant.
+set -euo pipefail
+
+pre_number_file="/run/snapper-apt-pre-number"
+
+if [[ -f "$pre_number_file" ]]; then
+    pre_number="$(cat "$pre_number_file")"
+    snapper create -t post --pre-number "$pre_number" -d 'apt transaction'
+    rm -f "$pre_number_file"
+fi
