@@ -200,26 +200,6 @@ else
     log_info "Brave Browser déjà présent"
 fi
 
-log_step "Installation de Spotify"
-case "$DISTRO_FAMILY" in
-    arch)
-        if [[ -n "$AUR_HELPER" ]]; then
-            if ! cmd_exists spotify; then
-                $AUR_HELPER -S --noconfirm spotify \
-                    && log_success "Spotify installé" \
-                    || log_warn "Échec installation Spotify via $AUR_HELPER"
-            else
-                log_info "Spotify déjà présent"
-            fi
-        else
-            log_warn "Aucun AUR helper disponible — Spotify sera installé via Flatpak"
-        fi
-        ;;
-    *)
-        log_info "Spotify sera installé via Flatpak (universel et fiable)"
-        ;;
-esac
-
 log_step "Installation de Flatpak"
 if ! cmd_exists flatpak; then
     log_info "Installation de Flatpak..."
@@ -234,18 +214,46 @@ log_info "Ajout du dépôt Flathub..."
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 log_success "Flathub configuré"
 
-log_step "Installation des applications Flatpak"
 declare -A FLATPAK_APPS=(
-    [com.discordapp.Discord]="Discord"
-    [com.protonvpn.www]="ProtonVPN"
-    [com.spotify.Client]="Spotify"
     [im.riot.Riot]="Element"
     [io.appflowy.AppFlowy]="AppFlowy"
-    [me.proton.Mail]="Proton Mail"
     [org.localsend.localsend_app]="LocalSend"
     [org.onlyoffice.desktopeditors]="OnlyOffice"
 )
 
+# Installe nativement via AUR sur Arch si un AUR_HELPER est disponible,
+# sinon programme un repli Flatpak (ajouté à FLATPAK_APPS ci-dessus).
+install_native_or_flatpak() {
+    local aur_pkg="$1" flatpak_id="$2" label="$3"
+
+    if [[ "$DISTRO_FAMILY" == "arch" && -n "$AUR_HELPER" ]]; then
+        if pacman -Qi "$aur_pkg" &>/dev/null; then
+            log_info "$label déjà présent (AUR : $aur_pkg)"
+        else
+            "$AUR_HELPER" -S --noconfirm "$aur_pkg" \
+                && log_success "$label installé (AUR : $aur_pkg)" \
+                || log_warn "Échec installation $label via $AUR_HELPER"
+        fi
+        return
+    fi
+
+    if [[ -z "$flatpak_id" ]]; then
+        log_warn "$label : pas de Flatpak disponible sur Flathub — installation manuelle requise (AUR uniquement pour l'instant)"
+        return
+    fi
+
+    [[ "$DISTRO_FAMILY" == "arch" ]] && log_warn "Aucun AUR helper disponible — $label sera installé via Flatpak"
+    FLATPAK_APPS["$flatpak_id"]="$label"
+}
+
+log_step "Installation de Spotify, Discord et la suite Proton"
+install_native_or_flatpak spotify              com.spotify.Client      "Spotify"
+install_native_or_flatpak discord              com.discordapp.Discord  "Discord"
+install_native_or_flatpak proton-vpn-gtk-app   com.protonvpn.www       "ProtonVPN"
+install_native_or_flatpak proton-mail          me.proton.Mail          "Proton Mail"
+install_native_or_flatpak proton-authenticator ""                      "Proton Authenticator"
+
+log_step "Installation des applications Flatpak"
 for app_id in "${!FLATPAK_APPS[@]}"; do
     if flatpak list --app | grep -q "$app_id"; then
         log_info "${FLATPAK_APPS[$app_id]} déjà installé"
