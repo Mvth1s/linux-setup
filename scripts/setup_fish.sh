@@ -20,6 +20,9 @@ link_config() {
         log_warn "Backup : $dest → $BACKUP_DIR/"
         mkdir -p "$BACKUP_DIR"
         cp -r "$dest" "$BACKUP_DIR/"
+        # Un vrai dossier n'est pas remplacé par `ln -sf` : le lien serait créé
+        # à l'intérieur. Il faut le supprimer explicitement après le backup.
+        rm -rf "$dest"
     fi
 
     ln -sf "$src_abs" "$dest"
@@ -61,23 +64,29 @@ else
     log_success "Tide installé"
 fi
 
-log_step "Configuration de Tide (Classic, icônes activées, deux lignes)"
+log_step "Configuration de Tide (Classic, cadre, icônes activées, deux lignes)"
 if fish -c 'set -q __linux_setup_tide_configured' 2>/dev/null; then
     log_info "Tide déjà configuré"
 else
     if fish -c "tide configure --auto \
         --style=Classic \
         --prompt_colors='True color' \
-        --classic_prompt_color=Dark \
-        --show_time=No \
+        --classic_prompt_color=Darkest \
+        --show_time='24-hour format' \
         --classic_prompt_separators=Angled \
+        --powerline_prompt_heads=Sharp \
+        --powerline_prompt_tails=Sharp \
+        --powerline_prompt_style='Two lines, frame' \
+        --prompt_connection=Solid \
+        --powerline_right_prompt_frame=Yes \
+        --prompt_connection_andor_frame_color=Darkest \
         --prompt_spacing=Sparse \
         --icons='Many icons' \
         --transient=No \
         --finish='Overwrite your current tide config'" 2>/dev/null
     then
         fish -c 'set -U __linux_setup_tide_configured 1'
-        log_success "Tide configuré (Classic, icônes activées, deux lignes)"
+        log_success "Tide configuré (Classic, cadre, icônes activées, deux lignes)"
     else
         log_warn "Configuration automatique de Tide échouée — lance 'tide configure' manuellement dans fish"
     fi

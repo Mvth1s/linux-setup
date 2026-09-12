@@ -19,6 +19,9 @@ link_config() {
         log_warn "Backup : $dest → $BACKUP_DIR/"
         mkdir -p "$BACKUP_DIR"
         cp -r "$dest" "$BACKUP_DIR/"
+        # Un vrai dossier n'est pas remplacé par `ln -sf` : le lien serait créé
+        # à l'intérieur. Il faut le supprimer explicitement après le backup.
+        rm -rf "$dest"
     fi
 
     ln -sf "$src_abs" "$dest"
