@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Synchronise le graphe Logseq : commit explicite, pull --rebase, push.
+# Usage : sb-sync <projet-ou-sujet>   (ex : sb-sync Verto)
+set -euo pipefail
+
+SB_DIR="${SB_DIR:-/mnt/samsung4To/Dev/second-brain}"
+scope="${1:-second-brain}"
+git_sb() { git -C "$SB_DIR" "$@"; }
+
+git_sb add -A
+if git_sb diff --cached --quiet; then
+    echo "sb-sync : rien à commiter."
+    exit 0
+fi
+
+git_sb commit -m "docs(${scope}): $(date +%d/%m/%Y)"
+
+if ! git_sb pull --rebase; then
+    git_sb rebase --abort || true
+    echo "sb-sync : conflit lors du pull --rebase, rebase annulé. Résous à la main dans $SB_DIR." >&2
+    exit 1
+fi
+
+git_sb push
